@@ -1,0 +1,12 @@
+obstacle_range: 3.0
+raytrace_range: 3.5
+
+footprint: [[-0.10, -0.10], [-0.10, 0.10], [0.10, 0.10], [0.10, -0.10]] # brandenbot
+#robot_radius: 0.105
+
+inflation_radius: 0.3      # small inflation radius
+cost_scaling_factor: 3.0   
+
+map_type: costmap
+observation_sources: point_cloud_sensor
+point_cloud_sensor: {sensor_frame: camera_link, data_type: PointCloud2, topic: /rtabmap/cloud_obstacles, marking: true, clearing: true}

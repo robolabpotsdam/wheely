@@ -1,0 +1,13 @@
+<launch>
+
+
+  <include file="/home/sam/brandenbot/launch/tracking.launch" />
+
+  <!-- move_base -->
+  <include file="/home/sam/brandenbot/launch/move_base.launch">
+    <arg name="cmd_vel_topic" value="/thunderborg/cmd_vel" />
+  </include>
+
+</launch>
+
+

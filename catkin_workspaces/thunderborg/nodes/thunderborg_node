@@ -1,0 +1,107 @@
+#!/usr/bin/env python
+import rospy
+from geometry_msgs.msg import Twist, Pose
+from nav_msgs.msg import Odometry
+
+import sys
+import os
+import time
+import math
+from thunderborg import ThunderBorg
+
+def rps(power):
+    # very rough approximation
+    if power >= 1.0:
+        return (4*power)/3
+    return power
+
+def velocity(rps):
+    # velocity in meters per second
+    return rps*wheel_diameter*math.pi
+
+def displacement(velocity, time):
+    return velocity*time
+
+def callback(data):
+    # This is assuming data from the turtle_teleop_key node
+    global total_dist, pub, odom
+    # forward
+    if data.linear.x == 2:
+        TB.SetMotor1(vel)
+        TB.SetMotor2(vel)
+    # backward
+    elif data.linear.x == -2:
+        TB.SetMotor1(-vel)
+        TB.SetMotor2(-vel)
+    # right
+    elif data.angular.z == -2:
+        TB.SetMotor1(angular_vel)
+        TB.SetMotor2(-angular_vel)
+    # left
+    elif data.angular.z== 2:
+        TB.SetMotor1(-angular_vel)
+        TB.SetMotor2(angular_vel)
+    
+    time.sleep(interval)
+    delta_y = displacement(velocity(rps(vel)), interval)
+    TB.SetMotor1(0.0)
+    TB.SetMotor2(0.0)
+    total_dist += delta_y
+    print(f"Total distance traveled = {total_dist}")
+    odom.pose.pose.position.y += delta_y
+
+    pub.publish(odom)
+
+
+def main():
+    global TB, vel, angular_vel, interval, wheel_diameter, total_dist, pub, odom
+
+    total_dist = 0
+    wheel_diameter = 0.062 # wheel diameter in meters
+    vel = 0.5
+    angular_vel = 0.2
+    interval = 0.035
+    TB = ThunderBorg.ThunderBorg()
+    TB.Init()
+    rospy.init_node('piborg')
+    
+
+    if not TB.foundChip:
+        rospy.loginfo(f"No ThunderBorg at address {TB.i2cAddress}, check address and connection")
+    
+    
+#    TB.SetCommsFailsafe(True)   for some reason the leds ignore other commands when failsafe is true
+    # Show battery monitoring settings
+    battMin, battMax = TB.GetBatteryMonitoringLimits()
+    battCurrent = TB.GetBatteryReading()
+    rospy.loginfo('Battery monitoring settings:')
+    rospy.loginfo(f'\tMinimum  (red)  \t{battMin:02.2f} V')
+    rospy.loginfo(f'\tMaximum  (green)\t{battMax:02.2f} V')
+    print()
+    rospy.loginfo(f'\tCurrent voltage \t{battCurrent:02.2f} V')
+    print()
+
+    TB.MotorsOff()
+    TB.SetLedShowBattery(False)
+    TB.SetLeds(0,0,1)
+    cmd_topic = '/thunderborg/cmd_vel'
+    
+    odom = Odometry()
+    odom.pose.pose.position.x = 0
+    odom.pose.pose.position.y = 0
+    odom.pose.pose.position.z = 0
+    pub = rospy.Publisher('/piborg/odom', Odometry)
+    rospy.loginfo(f"Listening to velocity commands written to {cmd_topic}")
+    rospy.loginfo("Press Ctrl + C to stop.")
+    rospy.Subscriber(cmd_topic, Twist, callback)
+    rospy.spin()
+ 
+
+if __name__ == '__main__':
+    main()
+    TB.MotorsOff()
+    TB.SetCommsFailsafe(False)
+    TB.SetLedShowBattery(False)
+    TB.SetLeds(0,0,0)
+
+
